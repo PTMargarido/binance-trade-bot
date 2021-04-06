@@ -17,6 +17,7 @@ class AutoTrader:
         self.db = database
         self.logger = logger
         self.config = config
+        self._balance_sending = 0
 
     def initialize(self):
         self.initialize_trade_thresholds()
@@ -128,6 +129,21 @@ class AutoTrader:
         """
         ratio_dict = self._get_ratios(coin, coin_price, all_tickers)
 
+        current_pair_used = coin + self.config.BRIDGE
+        current_coin_price = get_market_ticker_price_from_list(all_tickers, current_pair_used)
+        coin_balance = self.manager.get_currency_balance(coin.info()["symbol"])
+        if(self._balance_sending >= 60):
+            self.logger.info(f" -- {current_pair_used} - CURRENT BALANCE: {coin_balance * current_coin_price}")
+            self._balance_sending = 0
+
+        print(f" -- {current_pair_used} - CURRENT BALANCE: {coin_balance * current_coin_price}")
+        print(f"    CURRENT PRICE: {current_coin_price}")
+
+
+        for k, v in ratio_dict.items():
+            formt_v = round(v,6)
+            print(f"    * {k.from_coin.symbol:<5} to {k.to_coin.symbol:<5}. Diff: {formt_v * 100}%")
+
         # keep only ratios bigger than zero
         ratio_dict = {k: v for k, v in ratio_dict.items() if v > 0}
 
@@ -136,6 +152,8 @@ class AutoTrader:
             best_pair = max(ratio_dict, key=ratio_dict.get)
             self.logger.info(f"Will be jumping from {coin} to {best_pair.to_coin_id}")
             self.transaction_through_bridge(best_pair, all_tickers)
+
+        self._balance_sending = self._balance_sending + 1 
 
     def bridge_scout(self):
         """
